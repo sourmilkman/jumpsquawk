@@ -25,6 +25,10 @@ type BrowserSpeechRecognition = EventTarget & {
   onresult: ((event: SpeechRecognitionEvent) => void) | null;
   onerror: ((event: Event) => void) | null;
   onend: (() => void) | null;
+  onstart: (() => void) | null;
+  onaudiostart: (() => void) | null;
+  onspeechstart: (() => void) | null;
+  onspeechend: (() => void) | null;
 };
 
 type SpeechRecognitionConstructor = new () => BrowserSpeechRecognition;
@@ -46,6 +50,10 @@ export function startSpeechRecognition(options: {
   onFinal: (text: string) => void;
   onInterim: (text: string) => void;
   onUnavailable: (message: string) => void;
+  onListening?: () => void;
+  onAudioStart?: () => void;
+  onSpeechStart?: () => void;
+  onSpeechEnd?: () => void;
 }): SpeechRecognitionHandle | null {
   const Recognition = getSpeechRecognition();
   if (!Recognition) {
@@ -59,6 +67,22 @@ export function startSpeechRecognition(options: {
   recognition.lang = "es-ES";
   recognition.continuous = true;
   recognition.interimResults = true;
+
+  recognition.onstart = () => {
+    options.onListening?.();
+  };
+
+  recognition.onaudiostart = () => {
+    options.onAudioStart?.();
+  };
+
+  recognition.onspeechstart = () => {
+    options.onSpeechStart?.();
+  };
+
+  recognition.onspeechend = () => {
+    options.onSpeechEnd?.();
+  };
 
   recognition.onresult = (event) => {
     let interim = "";
@@ -78,8 +102,15 @@ export function startSpeechRecognition(options: {
     options.onInterim(interim);
   };
 
-  recognition.onerror = () => {
-    options.onUnavailable("Speech recognition stopped. Check Android microphone/browser permissions.");
+  recognition.onerror = (event) => {
+    const errorName = "error" in event ? String(event.error) : "";
+    const message =
+      errorName === "not-allowed" || errorName === "service-not-allowed"
+        ? "Microphone permission is blocked for speech recognition. Allow mic access in Chrome site settings."
+        : errorName === "no-speech"
+          ? "I did not hear speech. Try speaking closer to the phone, then tap the mic again."
+          : "Speech recognition stopped. Check Android microphone/browser permissions.";
+    options.onUnavailable(message);
   };
 
   recognition.onend = () => {

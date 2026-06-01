@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { App } from "./App";
 
 vi.stubGlobal(
@@ -10,6 +10,10 @@ vi.stubGlobal(
     json: async () => ({ ok: false, realtimeReady: false })
   }))
 );
+
+afterEach(() => {
+  Reflect.deleteProperty(window, "webkitSpeechRecognition");
+});
 
 describe("App", () => {
   it("renders the mobile-first practice surface", async () => {
@@ -30,5 +34,43 @@ describe("App", () => {
 
     expect(await screen.findByText("Me llamo Tom")).toBeInTheDocument();
     expect(screen.getAllByText(/Typed practice started/i).length).toBeGreaterThan(0);
+  });
+
+  it("starts browser speech recognition without pre-opening getUserMedia", async () => {
+    const getUserMedia = vi.fn();
+    Object.defineProperty(navigator, "mediaDevices", {
+      configurable: true,
+      value: { getUserMedia }
+    });
+
+    const start = vi.fn(function start(this: { onstart?: () => void }) {
+      this.onstart?.();
+    });
+    class FakeSpeechRecognition {
+      continuous = false;
+      interimResults = false;
+      lang = "";
+      onresult = null;
+      onerror = null;
+      onend = null;
+      onstart: (() => void) | null = null;
+      onaudiostart = null;
+      onspeechstart = null;
+      onspeechend = null;
+      start = start;
+      stop = vi.fn();
+    }
+    Object.defineProperty(window, "webkitSpeechRecognition", {
+      configurable: true,
+      value: FakeSpeechRecognition
+    });
+
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(await screen.findByLabelText("Start microphone practice"));
+
+    expect(getUserMedia).not.toHaveBeenCalled();
+    expect((await screen.findAllByText(/Listening for Spanish now/i)).length).toBeGreaterThan(0);
   });
 });

@@ -388,16 +388,29 @@ async function startDemoPractice(options: {
 }): Promise<RealtimeSession> {
   const { starter, handlers, setMicNote, setMicLevel, setInterimSpeech, micRef, speechRef } = options;
   handlers.onStatus("requesting-mic");
-  const check = await ensureMicrophoneAccess();
-  micRef.current = check.stream;
-  setMicLevel(check.level);
   const session = startDemoSession(starter, handlers);
   const speechSupported = supportsSpeechRecognition();
 
+  if (!speechSupported) {
+    const check = await ensureMicrophoneAccess();
+    micRef.current = check.stream;
+    setMicLevel(check.level);
+    setMicNote(
+      "Microphone permission granted, but this browser cannot transcribe demo speech. Use live mode or type a reply."
+    );
+    return {
+      stop: () => {
+        micRef.current?.getTracks().forEach((track) => track.stop());
+        micRef.current = null;
+        session.stop();
+      },
+      sendText: session.sendText
+    };
+  }
+
+  setMicLevel(0.2);
   setMicNote(
-    speechSupported
-      ? "Microphone permission granted. Speak in Spanish; demo mode will transcribe supported browsers."
-      : "Microphone permission granted, but this browser cannot transcribe demo speech. Use live mode or type a reply."
+    "Starting speech recognition. If Android asks for the microphone, choose Allow."
   );
 
   speechRef.current = startSpeechRecognition({
@@ -406,7 +419,26 @@ async function startDemoPractice(options: {
       session.sendText(text);
     },
     onInterim: setInterimSpeech,
-    onUnavailable: (message) => setMicNote(message)
+    onUnavailable: (message) => {
+      setMicLevel(0);
+      setMicNote(message);
+    },
+    onListening: () => {
+      setMicLevel(0.35);
+      setMicNote("Listening for Spanish now. Speak after the tutor prompt.");
+    },
+    onAudioStart: () => {
+      setMicLevel(0.55);
+      setMicNote("Microphone is active. Start speaking in Spanish.");
+    },
+    onSpeechStart: () => {
+      setMicLevel(0.85);
+      setMicNote("I hear speech. Keep going until the phrase appears.");
+    },
+    onSpeechEnd: () => {
+      setMicLevel(0.35);
+      setMicNote("Processing what you said...");
+    }
   });
 
   return {
