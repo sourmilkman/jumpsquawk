@@ -282,9 +282,44 @@ button {
 .conversation-panel {
   display: grid;
   min-height: calc(100vh - 124px);
-  grid-template-rows: auto auto 1fr auto auto;
+  grid-template-rows: auto auto auto 1fr auto auto;
   gap: 16px;
   padding: 18px;
+}
+
+.mode-warning {
+  display: grid;
+  gap: 8px;
+  border: 1px solid rgba(229, 62, 62, 0.3);
+  border-radius: 18px;
+  background: #fff5f5;
+  color: #7f1d1d;
+  padding: 12px 14px;
+}
+
+.mode-warning span {
+  color: #991b1b;
+  line-height: 1.35;
+}
+
+.mode-warning button {
+  justify-self: start;
+  border: 0;
+  border-radius: 999px;
+  background: #101827;
+  color: #fff;
+  padding: 9px 12px;
+  font-weight: 800;
+}
+
+:root[data-theme="dark"] .mode-warning {
+  border-color: rgba(240, 82, 82, 0.38);
+  background: rgba(127, 29, 29, 0.28);
+  color: #fecaca;
+}
+
+:root[data-theme="dark"] .mode-warning span {
+  color: #fca5a5;
 }
 
 .lesson-switcher {

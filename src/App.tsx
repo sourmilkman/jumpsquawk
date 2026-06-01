@@ -46,6 +46,7 @@ import { APP_VERSION } from "./lib/version";
 import { getSpeakingSupport, type SpeakingSupport } from "./lib/scaffolding";
 import { speakSpanish, stopSpanishSpeech } from "./lib/browserTts";
 import { translateTutorText } from "./lib/translation";
+import { isLikelyTutorEcho } from "./lib/speechFilters";
 
 type View = "practice" | "lessons" | "review" | "progress" | "settings";
 
@@ -110,6 +111,7 @@ export function App() {
   const speechRef = useRef<SpeechRecognitionHandle | null>(null);
   const utteranceRef = useRef<UtteranceBuffer | null>(null);
   const lastLearnerSendRef = useRef({ text: "", at: 0 });
+  const recentTutorLinesRef = useRef<string[]>([]);
 
   const lesson = useMemo(() => getLessonById(lessonId), [lessonId]);
   const turns = messages.filter((message) => message.role !== "system").length;
@@ -153,6 +155,7 @@ export function App() {
 
   function resetSessionMessages() {
     lastLearnerSendRef.current = { text: "", at: 0 };
+    recentTutorLinesRef.current = [];
     setMessages([
       {
         id: crypto.randomUUID(),
@@ -175,7 +178,10 @@ export function App() {
           const last = current[current.length - 1];
           if (last?.role === nextMessage.role && last.text === nextMessage.text) return current;
           if (nextMessage.role === "tutor" && useDemo) {
+            recentTutorLinesRef.current = [nextMessage.text, ...recentTutorLinesRef.current].slice(0, 4);
             speakSpanish(nextMessage.text, progress?.settings.audioOutput, progress?.settings.voice);
+          } else if (nextMessage.role === "tutor") {
+            recentTutorLinesRef.current = [nextMessage.text, ...recentTutorLinesRef.current].slice(0, 4);
           }
           return [...current, nextMessage].slice(-18);
         }),
@@ -191,6 +197,12 @@ export function App() {
     if (!normalized) return false;
 
     const now = Date.now();
+    if (isLikelyTutorEcho(normalized, recentTutorLinesRef.current)) {
+      setMicNote("Ignored tutor audio picked up by the microphone.");
+      setInterimSpeech("");
+      return false;
+    }
+
     const last = lastLearnerSendRef.current;
     if (last.text === normalized && now - last.at < 15000) {
       setMicNote("Skipped a repeated speech result from the browser.");
@@ -383,6 +395,8 @@ export function App() {
             status={status}
             typedReply={typedReply}
             useDemo={Boolean(useDemo)}
+            health={health}
+            onDisableDemo={() => patchSettings({ demoMode: false })}
             micNote={micNote}
             micLevel={micLevel}
             interimSpeech={interimSpeech}
@@ -546,6 +560,8 @@ function PracticeView(props: {
   status: RealtimeStatus;
   typedReply: string;
   useDemo: boolean;
+  health: HealthState | null;
+  onDisableDemo: () => void;
   micNote: string;
   micLevel: number;
   interimSpeech: string;
@@ -556,6 +572,18 @@ function PracticeView(props: {
   return (
     <section className="practice-layout">
       <div className="conversation-panel">
+        {props.useDemo && (
+          <div className="mode-warning">
+            <strong>Demo mode is on.</strong>
+            <span>Scripted replies and your browser's system voice are being used, not the OpenAI AI voice.</span>
+            {props.health?.realtimeReady && (
+              <button onClick={props.onDisableDemo} type="button">
+                Switch to live AI
+              </button>
+            )}
+          </div>
+        )}
+
         <div className="lesson-switcher">
           {lessons.map((item) => (
             <button
