@@ -37,6 +37,16 @@ export type RealtimeVoice =
   | "verse"
   | "marin";
 
+function normalizeSpanish(text: string): string {
+  return text
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9ñ\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function makeMessage(
   role: TranscriptMessage["role"],
   text: string,
@@ -204,11 +214,44 @@ export function startDemoSession(
       handlers.onStatus("speaking");
       window.setTimeout(() => {
         if (stopped) return;
-        handlers.onMessage(
-          makeMessage("tutor", "Muy bien. Puedes decir un poco mas? Usa una frase corta.")
-        );
+        handlers.onMessage(makeMessage("tutor", buildDemoReply(text)));
         handlers.onStatus("listening");
       }, 650);
     }
   };
+}
+
+export function buildDemoReply(text: string): string {
+  const normalized = normalizeSpanish(text);
+  const hasGreeting = /\b(hola|buenos dias|buenas)\b/.test(normalized);
+  const hasName = /\b(me llamo|mi nombre es|soy)\b/.test(normalized);
+  const hasMuchoGusto = normalized.includes("mucho gusto");
+  const asksHowAreYou = normalized.includes("como estas") || normalized.includes("que tal");
+  const saysGood = /\b(bien|muy bien|estoy bien)\b/.test(normalized);
+
+  if (hasMuchoGusto && asksHowAreYou) {
+    return "Mucho gusto tambien. Estoy bien, gracias. Y tu, como estas?";
+  }
+
+  if (hasMuchoGusto) {
+    return "Mucho gusto. Ahora preguntame: Como estas?";
+  }
+
+  if (asksHowAreYou) {
+    return "Estoy bien, gracias. Y tu?";
+  }
+
+  if (hasName && hasGreeting) {
+    return "Mucho gusto. Puedes decir: Mucho gusto, Lucia.";
+  }
+
+  if (hasName) {
+    return "Mucho gusto. Puedes preguntarme: Y tu, como te llamas?";
+  }
+
+  if (saysGood) {
+    return "Me alegro. Di una frase mas: Estoy aprendiendo espanol.";
+  }
+
+  return "Muy bien. Puedes decir un poco mas? Usa una frase corta.";
 }

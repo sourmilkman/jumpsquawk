@@ -91,7 +91,7 @@ export function createUtteranceBuffer(options: {
     const textLower = text.toLocaleLowerCase();
     const committedLower = lastCommitted.toLocaleLowerCase();
     const now = Date.now();
-    if (textLower === committedLower && now - lastCommittedAt < 4000) {
+    if (textLower === committedLower && now - lastCommittedAt < 12000) {
       return;
     }
 

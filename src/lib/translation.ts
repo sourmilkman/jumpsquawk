@@ -7,6 +7,12 @@ const fixedTranslations = new Map<string, string>([
   ["cuentame un poco sobre tu familia o tus amigos", "Tell me a little about your family or your friends."],
   ["que te gusta hacer los fines de semana", "What do you like to do at the weekend?"],
   ["muy bien puedes decir un poco mas usa una frase corta", "Very good. Can you say a little more? Use a short phrase."],
+  ["mucho gusto tambien estoy bien gracias y tu como estas", "Nice to meet you too. I am well, thanks. And you, how are you?"],
+  ["mucho gusto ahora preguntame como estas", "Nice to meet you. Now ask me: How are you?"],
+  ["estoy bien gracias y tu", "I am well, thanks. And you?"],
+  ["mucho gusto puedes decir mucho gusto lucia", "Nice to meet you. You can say: Nice to meet you, Lucia."],
+  ["mucho gusto puedes preguntarme y tu como te llamas", "Nice to meet you. You can ask me: And you, what is your name?"],
+  ["me alegro di una frase mas estoy aprendiendo espanol", "I am glad. Say one more sentence: I am learning Spanish."],
   ["muy bien", "Very good."],
   ["puedes decir un poco mas", "Can you say a little more?"],
   ["usa una frase corta", "Use a short phrase."]

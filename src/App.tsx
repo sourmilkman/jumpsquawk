@@ -68,8 +68,8 @@ const statusLabel: Record<RealtimeStatus, string> = {
 };
 
 const voiceOptions: Array<{ value: RealtimeVoice; label: string }> = [
-  { value: "coral", label: "Coral - warm feminine" },
-  { value: "shimmer", label: "Shimmer - bright feminine" },
+  { value: "coral", label: "Coral - warm higher voice" },
+  { value: "shimmer", label: "Shimmer - bright higher voice" },
   { value: "sage", label: "Sage - calm" },
   { value: "verse", label: "Verse - expressive" },
   { value: "marin", label: "Marin - natural" },
@@ -81,6 +81,16 @@ const voiceOptions: Array<{ value: RealtimeVoice; label: string }> = [
 
 function sameOriginGateway(): string {
   return window.location.origin.includes("localhost") ? "" : "";
+}
+
+function normalizeLearnerSpeech(text: string): string {
+  return text
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9ñ\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 export function App() {
@@ -99,6 +109,7 @@ export function App() {
   const demoMicRef = useRef<MediaStream | null>(null);
   const speechRef = useRef<SpeechRecognitionHandle | null>(null);
   const utteranceRef = useRef<UtteranceBuffer | null>(null);
+  const lastLearnerSendRef = useRef({ text: "", at: 0 });
 
   const lesson = useMemo(() => getLessonById(lessonId), [lessonId]);
   const turns = messages.filter((message) => message.role !== "system").length;
@@ -141,6 +152,7 @@ export function App() {
   }
 
   function resetSessionMessages() {
+    lastLearnerSendRef.current = { text: "", at: 0 };
     setMessages([
       {
         id: crypto.randomUUID(),
@@ -163,7 +175,7 @@ export function App() {
           const last = current[current.length - 1];
           if (last?.role === nextMessage.role && last.text === nextMessage.text) return current;
           if (nextMessage.role === "tutor" && useDemo) {
-            speakSpanish(nextMessage.text, progress?.settings.audioOutput);
+            speakSpanish(nextMessage.text, progress?.settings.audioOutput, progress?.settings.voice);
           }
           return [...current, nextMessage].slice(-18);
         }),
@@ -172,6 +184,22 @@ export function App() {
         setStatus("error");
       }
     };
+  }
+
+  function shouldSendLearnerText(text: string): boolean {
+    const normalized = normalizeLearnerSpeech(text);
+    if (!normalized) return false;
+
+    const now = Date.now();
+    const last = lastLearnerSendRef.current;
+    if (last.text === normalized && now - last.at < 15000) {
+      setMicNote("Skipped a repeated speech result from the browser.");
+      setInterimSpeech("");
+      return false;
+    }
+
+    lastLearnerSendRef.current = { text: normalized, at: now };
+    return true;
   }
 
   async function startSession() {
@@ -200,7 +228,8 @@ export function App() {
             setInterimSpeech,
             micRef: demoMicRef,
             speechRef,
-            utteranceRef
+            utteranceRef,
+            shouldSendLearnerText
           })
         : await startRealtimeSession(
             buildTutorInstructions(lesson, speakingSupport.level),
@@ -282,7 +311,9 @@ export function App() {
       }
     }
 
-    sessionRef.current.sendText(text);
+    if (shouldSendLearnerText(text)) {
+      sessionRef.current.sendText(text);
+    }
   }
 
   if (!progress) {
@@ -412,8 +443,19 @@ async function startDemoPractice(options: {
   micRef: MutableRefObject<MediaStream | null>;
   speechRef: MutableRefObject<SpeechRecognitionHandle | null>;
   utteranceRef: MutableRefObject<UtteranceBuffer | null>;
+  shouldSendLearnerText: (text: string) => boolean;
 }): Promise<RealtimeSession> {
-  const { starter, handlers, setMicNote, setMicLevel, setInterimSpeech, micRef, speechRef, utteranceRef } =
+  const {
+    starter,
+    handlers,
+    setMicNote,
+    setMicLevel,
+    setInterimSpeech,
+    micRef,
+    speechRef,
+    utteranceRef,
+    shouldSendLearnerText
+  } =
     options;
   handlers.onStatus("requesting-mic");
   const session = startDemoSession(starter, handlers);
@@ -446,7 +488,9 @@ async function startDemoPractice(options: {
     onPreview: setInterimSpeech,
     onCommit: (text) => {
       setInterimSpeech("");
-      session.sendText(text);
+      if (shouldSendLearnerText(text)) {
+        session.sendText(text);
+      }
     }
   });
 
@@ -578,7 +622,7 @@ function PracticeView(props: {
                   <button
                     aria-label="Replay tutor line"
                     className="replay-line"
-                    onClick={() => speakSpanish(message.text, true)}
+                    onClick={() => speakSpanish(message.text, true, props.progress.settings.voice)}
                     type="button"
                   >
                     <Volume2 size={16} />
@@ -829,7 +873,7 @@ function SettingsView({
       </p>
       <p className="settings-note">
         Live conversations use the OpenAI speech-to-speech Realtime model. The tutor voice is AI-generated, not a
-        human recording.
+        human recording. Demo mode uses your browser's installed Spanish voices and picks the closest higher voice.
       </p>
       <div className="gateway-status">
         {health?.realtimeReady ? <Signal size={18} /> : <WifiOff size={18} />}

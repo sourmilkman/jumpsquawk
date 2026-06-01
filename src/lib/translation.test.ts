@@ -14,4 +14,10 @@ describe("translateTutorText", () => {
       translateTutorText("Muy bien. Puedes decir un poco mas? Usa una frase corta.", lessons[0])
     ).toBe("Very good. Can you say a little more? Use a short phrase.");
   });
+
+  it("translates the responsive demo greeting reply", () => {
+    expect(
+      translateTutorText("Mucho gusto tambien. Estoy bien, gracias. Y tu, como estas?", lessons[0])
+    ).toBe("Nice to meet you too. I am well, thanks. And you, how are you?");
+  });
 });
