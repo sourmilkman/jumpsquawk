@@ -2,6 +2,12 @@ export type SpeechRecognitionHandle = {
   stop: () => void;
 };
 
+export type UtteranceBuffer = {
+  add: (text: string) => void;
+  flush: () => void;
+  cancel: () => void;
+};
+
 type SpeechRecognitionResult = {
   isFinal: boolean;
   0: {
@@ -46,6 +52,71 @@ export function supportsSpeechRecognition(): boolean {
   return Boolean(getSpeechRecognition());
 }
 
+export function createUtteranceBuffer(options: {
+  delayMs?: number;
+  onCommit: (text: string) => void;
+  onPreview?: (text: string) => void;
+}): UtteranceBuffer {
+  const delayMs = options.delayMs ?? 1400;
+  let current = "";
+  let lastCommitted = "";
+  let lastCommittedAt = 0;
+  let timer: number | undefined;
+
+  function normalize(text: string): string {
+    return text.trim().replace(/\s+/g, " ");
+  }
+
+  function chooseBetter(previous: string, next: string): string {
+    const normalizedPrevious = normalize(previous);
+    const normalizedNext = normalize(next);
+    const previousLower = normalizedPrevious.toLocaleLowerCase();
+    const nextLower = normalizedNext.toLocaleLowerCase();
+
+    if (!normalizedPrevious) return normalizedNext;
+    if (nextLower.startsWith(previousLower)) return normalizedNext;
+    if (previousLower.startsWith(nextLower)) return normalizedPrevious;
+    return normalizedNext.length >= normalizedPrevious.length ? normalizedNext : normalizedPrevious;
+  }
+
+  function commit() {
+    const text = normalize(current);
+    window.clearTimeout(timer);
+    timer = undefined;
+    current = "";
+    options.onPreview?.("");
+
+    if (!text) return;
+
+    const textLower = text.toLocaleLowerCase();
+    const committedLower = lastCommitted.toLocaleLowerCase();
+    const now = Date.now();
+    if (textLower === committedLower && now - lastCommittedAt < 4000) {
+      return;
+    }
+
+    lastCommitted = text;
+    lastCommittedAt = now;
+    options.onCommit(text);
+  }
+
+  return {
+    add: (text) => {
+      current = chooseBetter(current, text);
+      options.onPreview?.(current);
+      window.clearTimeout(timer);
+      timer = window.setTimeout(commit, delayMs);
+    },
+    flush: commit,
+    cancel: () => {
+      window.clearTimeout(timer);
+      timer = undefined;
+      current = "";
+      options.onPreview?.("");
+    }
+  };
+}
+
 export function startSpeechRecognition(options: {
   onFinal: (text: string) => void;
   onInterim: (text: string) => void;
@@ -81,11 +152,12 @@ export function startSpeechRecognition(options: {
   };
 
   recognition.onspeechend = () => {
-    options.onSpeechEnd?.();
+    window.setTimeout(() => options.onSpeechEnd?.(), 450);
   };
 
   recognition.onresult = (event) => {
     let interim = "";
+    let finalText = "";
 
     for (let index = 0; index < event.results.length; index += 1) {
       const result = event.results[index];
@@ -93,13 +165,17 @@ export function startSpeechRecognition(options: {
       if (!transcript) continue;
 
       if (result.isFinal) {
-        options.onFinal(transcript);
+        finalText = transcript;
       } else {
         interim = transcript;
       }
     }
 
-    options.onInterim(interim);
+    if (finalText) {
+      options.onFinal(finalText);
+    }
+
+    options.onInterim(interim || finalText);
   };
 
   recognition.onerror = (event) => {

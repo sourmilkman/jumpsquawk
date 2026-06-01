@@ -33,7 +33,13 @@ import {
   type TranscriptMessage
 } from "./lib/realtimeClient";
 import { buildSessionSummary, buildTutorInstructions } from "./lib/sessionCoach";
-import { startSpeechRecognition, supportsSpeechRecognition, type SpeechRecognitionHandle } from "./lib/speechRecognition";
+import {
+  createUtteranceBuffer,
+  startSpeechRecognition,
+  supportsSpeechRecognition,
+  type SpeechRecognitionHandle,
+  type UtteranceBuffer
+} from "./lib/speechRecognition";
 import { clearAppCacheAndReload } from "./lib/appUpdate";
 import { APP_VERSION } from "./lib/version";
 import { getSpeakingSupport, type SpeakingSupport } from "./lib/scaffolding";
@@ -89,6 +95,7 @@ export function App() {
   const sessionRef = useRef<RealtimeSession | null>(null);
   const demoMicRef = useRef<MediaStream | null>(null);
   const speechRef = useRef<SpeechRecognitionHandle | null>(null);
+  const utteranceRef = useRef<UtteranceBuffer | null>(null);
 
   const lesson = useMemo(() => getLessonById(lessonId), [lessonId]);
   const turns = messages.filter((message) => message.role !== "system").length;
@@ -167,6 +174,8 @@ export function App() {
       sessionRef.current?.stop();
       speechRef.current?.stop();
       speechRef.current = null;
+      utteranceRef.current?.cancel();
+      utteranceRef.current = null;
       demoMicRef.current?.getTracks().forEach((track) => track.stop());
       demoMicRef.current = null;
       setInterimSpeech("");
@@ -179,7 +188,8 @@ export function App() {
             setMicLevel,
             setInterimSpeech,
             micRef: demoMicRef,
-            speechRef
+            speechRef,
+            utteranceRef
           })
         : await startRealtimeSession(
             buildTutorInstructions(lesson, speakingSupport.level),
@@ -198,6 +208,8 @@ export function App() {
     sessionRef.current = null;
     speechRef.current?.stop();
     speechRef.current = null;
+    utteranceRef.current?.flush();
+    utteranceRef.current = null;
     demoMicRef.current?.getTracks().forEach((track) => track.stop());
     demoMicRef.current = null;
     setInterimSpeech("");
@@ -385,8 +397,10 @@ async function startDemoPractice(options: {
   setInterimSpeech: (text: string) => void;
   micRef: MutableRefObject<MediaStream | null>;
   speechRef: MutableRefObject<SpeechRecognitionHandle | null>;
+  utteranceRef: MutableRefObject<UtteranceBuffer | null>;
 }): Promise<RealtimeSession> {
-  const { starter, handlers, setMicNote, setMicLevel, setInterimSpeech, micRef, speechRef } = options;
+  const { starter, handlers, setMicNote, setMicLevel, setInterimSpeech, micRef, speechRef, utteranceRef } =
+    options;
   handlers.onStatus("requesting-mic");
   const session = startDemoSession(starter, handlers);
   const speechSupported = supportsSpeechRecognition();
@@ -413,12 +427,20 @@ async function startDemoPractice(options: {
     "Starting speech recognition. If Android asks for the microphone, choose Allow."
   );
 
-  speechRef.current = startSpeechRecognition({
-    onFinal: (text) => {
+  utteranceRef.current = createUtteranceBuffer({
+    delayMs: 2200,
+    onPreview: setInterimSpeech,
+    onCommit: (text) => {
       setInterimSpeech("");
       session.sendText(text);
+    }
+  });
+
+  speechRef.current = startSpeechRecognition({
+    onFinal: (text) => utteranceRef.current?.add(text),
+    onInterim: (text) => {
+      if (text) utteranceRef.current?.add(text);
     },
-    onInterim: setInterimSpeech,
     onUnavailable: (message) => {
       setMicLevel(0);
       setMicNote(message);
@@ -437,7 +459,7 @@ async function startDemoPractice(options: {
     },
     onSpeechEnd: () => {
       setMicLevel(0.35);
-      setMicNote("Processing what you said...");
+      setMicNote("Finishing your phrase...");
     }
   });
 
@@ -445,6 +467,8 @@ async function startDemoPractice(options: {
     stop: () => {
       speechRef.current?.stop();
       speechRef.current = null;
+      utteranceRef.current?.flush();
+      utteranceRef.current = null;
       session.stop();
     },
     sendText: session.sendText
