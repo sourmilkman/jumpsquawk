@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Jumpsquawk app icon">
+  <rect width="512" height="512" rx="112" fill="#0f172a"/>
+  <path d="M128 316c0-79 58-142 130-142 70 0 126 53 126 119 0 67-56 119-126 119h-33l-63 47v-63c-22-20-34-48-34-80Z" fill="#f8fafc"/>
+  <path d="M168 144c32-42 86-64 142-48 53 15 90 60 99 112-31-38-71-59-119-61-45-2-86 13-122 44v-47Z" fill="#fbbf24"/>
+  <circle cx="219" cy="274" r="20" fill="#ef4444"/>
+  <circle cx="302" cy="274" r="20" fill="#14b8a6"/>
+  <path d="M216 338c29 19 66 19 94 0" stroke="#0f172a" stroke-width="22" stroke-linecap="round"/>
+</svg>
