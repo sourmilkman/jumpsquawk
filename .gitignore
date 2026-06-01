@@ -6,4 +6,7 @@ dist
 coverage
 *.tsbuildinfo
 dev-server.log
+dev-server.err.log
+api-server.log
+api-server.err.log
 .codex-remote-attachments
