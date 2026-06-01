@@ -1,11 +1,11 @@
+.env
+.env.*
+!.env.example
+.git
+.github
+.netlify
 node_modules
 dist
-.env
-.netlify
-.DS_Store
-*.local
-coverage
-*.tsbuildinfo
 dev-server.log
 dev-server.err.log
 api-server.log
