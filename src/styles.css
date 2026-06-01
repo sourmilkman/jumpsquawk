@@ -366,11 +366,30 @@ button {
 }
 
 .bubble {
+  position: relative;
   max-width: min(86%, 620px);
   border: 1px solid var(--line);
   border-radius: 22px;
   background: #fff;
   padding: 12px 14px;
+}
+
+.replay-line {
+  position: absolute;
+  top: 9px;
+  right: 10px;
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(15, 159, 154, 0.14);
+  color: #0f766e;
+}
+
+.bubble.tutor p {
+  padding-right: 30px;
 }
 
 :root[data-theme="dark"] .bubble {
@@ -388,6 +407,12 @@ button {
 .bubble p {
   margin: 5px 0 0;
   line-height: 1.45;
+}
+
+.bubble .translation {
+  border-top: 1px solid rgba(15, 159, 154, 0.18);
+  color: var(--muted);
+  font-size: 0.9rem;
 }
 
 .bubble.tutor {

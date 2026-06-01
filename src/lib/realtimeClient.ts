@@ -37,19 +37,29 @@ export type RealtimeVoice =
   | "verse"
   | "marin";
 
-function makeMessage(role: TranscriptMessage["role"], text: string): TranscriptMessage {
+function makeMessage(
+  role: TranscriptMessage["role"],
+  text: string,
+  translation?: string
+): TranscriptMessage {
   return {
     id: crypto.randomUUID(),
     role,
     text,
+    translation,
     at: new Date().toISOString()
   };
+}
+
+function createResponseEvent() {
+  return JSON.stringify({ type: "response.create" });
 }
 
 export async function startRealtimeSession(
   instructions: string,
   gatewayUrl: string,
   voice: RealtimeVoice,
+  audioOutput: boolean,
   handlers: RealtimeEventHandlers
 ): Promise<RealtimeSession> {
   handlers.onStatus("requesting-mic");
@@ -65,10 +75,17 @@ export async function startRealtimeSession(
   const dataChannel = peer.createDataChannel("oai-events");
   const remoteAudio = document.createElement("audio");
   remoteAudio.autoplay = true;
+  remoteAudio.muted = !audioOutput;
+  remoteAudio.volume = audioOutput ? 1 : 0;
+  remoteAudio.style.display = "none";
   remoteAudio.setAttribute("playsinline", "true");
+  document.body.appendChild(remoteAudio);
 
   peer.ontrack = (event) => {
     remoteAudio.srcObject = event.streams[0];
+    void remoteAudio.play().catch(() => {
+      handlers.onError("Tutor audio is blocked. Tap Start again, or check browser/site sound permissions.");
+    });
     handlers.onStatus("speaking");
   };
 
@@ -91,23 +108,23 @@ export async function startRealtimeSession(
         }
       })
     );
-    dataChannel.send(JSON.stringify({ type: "response.create" }));
+    dataChannel.send(createResponseEvent());
   });
 
   dataChannel.addEventListener("message", (event) => {
     const payload = JSON.parse(event.data);
-    const text =
-      payload?.transcript ??
-      payload?.delta ??
-      payload?.item?.content?.[0]?.transcript ??
-      payload?.response?.output?.[0]?.content?.[0]?.transcript;
+    const text = payload?.transcript ?? payload?.item?.content?.[0]?.transcript;
+    const isCompleteTranscript =
+      payload?.type === "response.output_audio_transcript.done" ||
+      payload?.type === "conversation.item.done" ||
+      payload?.type === "conversation.item.input_audio_transcription.completed";
 
-    if (typeof text === "string" && text.trim()) {
+    if (isCompleteTranscript && typeof text === "string" && text.trim()) {
       const role = payload?.item?.role === "user" ? "learner" : "tutor";
       handlers.onMessage(makeMessage(role, text.trim()));
     }
 
-    if (payload?.type === "response.audio.done") {
+    if (payload?.type === "response.audio.done" || payload?.type === "response.output_audio.done") {
       handlers.onStatus("listening");
     }
   });
@@ -141,6 +158,8 @@ export async function startRealtimeSession(
       dataChannel.close();
       peer.close();
       stream.getTracks().forEach((track) => track.stop());
+      remoteAudio.pause();
+      remoteAudio.srcObject = null;
       remoteAudio.remove();
       handlers.onStatus("ended");
     },
@@ -157,7 +176,7 @@ export async function startRealtimeSession(
           }
         })
       );
-      dataChannel.send(JSON.stringify({ type: "response.create" }));
+      dataChannel.send(createResponseEvent());
     }
   };
 }

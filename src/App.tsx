@@ -13,6 +13,7 @@ import {
   Sparkles,
   Square,
   Trophy,
+  Volume2,
   WifiOff
 } from "lucide-react";
 import { getLessonById, lessons, type Lesson } from "./data/lessons";
@@ -43,6 +44,8 @@ import {
 import { clearAppCacheAndReload } from "./lib/appUpdate";
 import { APP_VERSION } from "./lib/version";
 import { getSpeakingSupport, type SpeakingSupport } from "./lib/scaffolding";
+import { speakSpanish, stopSpanishSpeech } from "./lib/browserTts";
+import { translateTutorText } from "./lib/translation";
 
 type View = "practice" | "lessons" | "review" | "progress" | "settings";
 
@@ -153,9 +156,16 @@ export function App() {
       onStatus: setStatus,
       onMessage: (message: TranscriptMessage) =>
         setMessages((current) => {
+          const nextMessage =
+            message.role === "tutor" && !message.translation
+              ? { ...message, translation: translateTutorText(message.text, lesson) }
+              : message;
           const last = current[current.length - 1];
-          if (last?.role === message.role && last.text === message.text) return current;
-          return [...current, message].slice(-18);
+          if (last?.role === nextMessage.role && last.text === nextMessage.text) return current;
+          if (nextMessage.role === "tutor" && useDemo) {
+            speakSpanish(nextMessage.text, progress?.settings.audioOutput);
+          }
+          return [...current, nextMessage].slice(-18);
         }),
       onError: (message: string) => {
         setError(message);
@@ -173,6 +183,7 @@ export function App() {
     try {
       sessionRef.current?.stop();
       speechRef.current?.stop();
+      stopSpanishSpeech();
       speechRef.current = null;
       utteranceRef.current?.cancel();
       utteranceRef.current = null;
@@ -195,6 +206,7 @@ export function App() {
             buildTutorInstructions(lesson, speakingSupport.level),
             gatewayUrl,
             progress.settings.voice,
+            progress.settings.audioOutput,
             handlers
           );
     } catch (caught) {
@@ -206,6 +218,7 @@ export function App() {
   async function endSession() {
     sessionRef.current?.stop();
     sessionRef.current = null;
+    stopSpanishSpeech();
     speechRef.current?.stop();
     speechRef.current = null;
     utteranceRef.current?.flush();
@@ -258,6 +271,7 @@ export function App() {
             buildTutorInstructions(lesson, speakingSupport.level),
             gatewayUrl,
             progress.settings.voice,
+            progress.settings.audioOutput,
             handlers
           );
         } catch (caught) {
@@ -560,7 +574,20 @@ function PracticeView(props: {
             props.messages.map((message) => (
               <article className={`bubble ${message.role}`} key={message.id}>
                 <span>{message.role === "tutor" ? "Tutor" : message.role === "learner" ? "You" : "Note"}</span>
+                {message.role === "tutor" && (
+                  <button
+                    aria-label="Replay tutor line"
+                    className="replay-line"
+                    onClick={() => speakSpanish(message.text, true)}
+                    type="button"
+                  >
+                    <Volume2 size={16} />
+                  </button>
+                )}
                 <p>{message.text}</p>
+                {message.role === "tutor" && message.translation && (
+                  <p className="translation">{message.translation}</p>
+                )}
               </article>
             ))
           )}
@@ -740,6 +767,17 @@ function SettingsView({
       <button className="update-button" onClick={onUpdateApp} type="button">
         Update app
       </button>
+      <label className="switch-row">
+        <span>
+          <strong>Tutor audio</strong>
+          <small>Speak demo tutor lines and play live AI voice audio.</small>
+        </span>
+        <input
+          checked={progress.settings.audioOutput}
+          onChange={(event) => onSettings({ audioOutput: event.target.checked })}
+          type="checkbox"
+        />
+      </label>
       <label className="switch-row">
         <span>
           <strong>Demo mode</strong>
