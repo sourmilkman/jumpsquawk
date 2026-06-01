@@ -410,6 +410,8 @@ button {
 }
 
 .mic-note {
+  display: grid;
+  gap: 8px;
   border-radius: 16px;
   background: #eff6ff;
   color: #315176;
@@ -418,9 +420,48 @@ button {
   line-height: 1.35;
 }
 
+.mic-note strong {
+  color: var(--ink);
+  font-size: 0.9rem;
+}
+
+.mic-meter {
+  display: block;
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(49, 81, 118, 0.16);
+}
+
+.mic-meter span {
+  display: block;
+  height: 100%;
+  min-width: 8px;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--teal), var(--green));
+  transition: width 180ms ease;
+}
+
+.interim-speech {
+  border-radius: 999px;
+  background: #ecfeff;
+  color: #0f766e;
+  padding: 8px 12px;
+  font-weight: 750;
+}
+
 :root[data-theme="dark"] .mic-note {
   background: rgba(59, 130, 246, 0.14);
   color: #bfdbfe;
+}
+
+:root[data-theme="dark"] .mic-meter {
+  background: rgba(191, 219, 254, 0.14);
+}
+
+:root[data-theme="dark"] .interim-speech {
+  background: rgba(45, 212, 191, 0.14);
+  color: #99f6e4;
 }
 
 .practice-controls {

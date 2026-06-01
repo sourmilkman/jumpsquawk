@@ -33,6 +33,7 @@ import {
   type TranscriptMessage
 } from "./lib/realtimeClient";
 import { buildSessionSummary, buildTutorInstructions } from "./lib/sessionCoach";
+import { startSpeechRecognition, supportsSpeechRecognition, type SpeechRecognitionHandle } from "./lib/speechRecognition";
 
 type View = "practice" | "lessons" | "review" | "progress" | "settings";
 
@@ -80,8 +81,11 @@ export function App() {
   const [error, setError] = useState("");
   const [health, setHealth] = useState<HealthState | null>(null);
   const [micNote, setMicNote] = useState("Microphone permission has not been requested yet.");
+  const [micLevel, setMicLevel] = useState(0);
+  const [interimSpeech, setInterimSpeech] = useState("");
   const sessionRef = useRef<RealtimeSession | null>(null);
   const demoMicRef = useRef<MediaStream | null>(null);
+  const speechRef = useRef<SpeechRecognitionHandle | null>(null);
 
   const lesson = useMemo(() => getLessonById(lessonId), [lessonId]);
   const turns = messages.filter((message) => message.role !== "system").length;
@@ -118,9 +122,7 @@ export function App() {
     setProgress(nextProgress);
   }
 
-  async function startSession() {
-    if (!progress) return;
-    setError("");
+  function resetSessionMessages() {
     setMessages([
       {
         id: crypto.randomUUID(),
@@ -129,8 +131,10 @@ export function App() {
         at: new Date().toISOString()
       }
     ]);
+  }
 
-    const handlers = {
+  function makeHandlers() {
+    return {
       onStatus: setStatus,
       onMessage: (message: TranscriptMessage) =>
         setMessages((current) => {
@@ -143,14 +147,32 @@ export function App() {
         setStatus("error");
       }
     };
+  }
+
+  async function startSession() {
+    if (!progress) return;
+    setError("");
+    resetSessionMessages();
+    const handlers = makeHandlers();
 
     try {
       sessionRef.current?.stop();
+      speechRef.current?.stop();
+      speechRef.current = null;
       demoMicRef.current?.getTracks().forEach((track) => track.stop());
       demoMicRef.current = null;
+      setInterimSpeech("");
 
       sessionRef.current = useDemo
-        ? await startDemoPractice(lesson.starter, handlers, setMicNote, demoMicRef)
+        ? await startDemoPractice({
+            starter: lesson.starter,
+            handlers,
+            setMicNote,
+            setMicLevel,
+            setInterimSpeech,
+            micRef: demoMicRef,
+            speechRef
+          })
         : await startRealtimeSession(
             buildTutorInstructions(lesson),
             gatewayUrl,
@@ -166,8 +188,12 @@ export function App() {
   async function endSession() {
     sessionRef.current?.stop();
     sessionRef.current = null;
+    speechRef.current?.stop();
+    speechRef.current = null;
     demoMicRef.current?.getTracks().forEach((track) => track.stop());
     demoMicRef.current = null;
+    setInterimSpeech("");
+    setMicLevel(0);
 
     if (!progress) return;
     const summary = buildSessionSummary(lesson, Math.max(turns, 1));
@@ -192,11 +218,37 @@ export function App() {
     setStatus("ended");
   }
 
-  function sendTypedReply() {
+  async function sendTypedReply() {
+    if (!progress) return;
     const text = typedReply.trim();
     if (!text) return;
-    sessionRef.current?.sendText(text);
     setTypedReply("");
+    setError("");
+
+    if (!sessionRef.current) {
+      resetSessionMessages();
+      const handlers = makeHandlers();
+
+      if (useDemo) {
+        sessionRef.current = startDemoSession(lesson.starter, handlers);
+        setMicNote("Typed practice started. Tap the red mic if you also want speech input.");
+      } else {
+        try {
+          sessionRef.current = await startRealtimeSession(
+            buildTutorInstructions(lesson),
+            gatewayUrl,
+            progress.settings.voice,
+            handlers
+          );
+        } catch (caught) {
+          setError(caught instanceof Error ? caught.message : "Could not start live text practice.");
+          setStatus("error");
+          return;
+        }
+      }
+    }
+
+    sessionRef.current.sendText(text);
   }
 
   if (!progress) {
@@ -266,6 +318,8 @@ export function App() {
             typedReply={typedReply}
             useDemo={Boolean(useDemo)}
             micNote={micNote}
+            micLevel={micLevel}
+            interimSpeech={interimSpeech}
           />
         )}
         {view === "lessons" && (
@@ -311,21 +365,46 @@ export function App() {
   );
 }
 
-async function startDemoPractice(
-  starter: string,
-  handlers: Parameters<typeof startDemoSession>[1],
-  setMicNote: (message: string) => void,
-  micRef: MutableRefObject<MediaStream | null>
-): Promise<RealtimeSession> {
+async function startDemoPractice(options: {
+  starter: string;
+  handlers: Parameters<typeof startDemoSession>[1];
+  setMicNote: (message: string) => void;
+  setMicLevel: (level: number) => void;
+  setInterimSpeech: (text: string) => void;
+  micRef: MutableRefObject<MediaStream | null>;
+  speechRef: MutableRefObject<SpeechRecognitionHandle | null>;
+}): Promise<RealtimeSession> {
+  const { starter, handlers, setMicNote, setMicLevel, setInterimSpeech, micRef, speechRef } = options;
   handlers.onStatus("requesting-mic");
   const check = await ensureMicrophoneAccess();
   micRef.current = check.stream;
+  setMicLevel(check.level);
+  const session = startDemoSession(starter, handlers);
+  const speechSupported = supportsSpeechRecognition();
+
   setMicNote(
-    check.level > 0.02
-      ? "Microphone permission granted. Demo mode does not transcribe speech, but your mic is active."
-      : "Microphone permission granted. Speak close to the phone if live mode seems quiet."
+    speechSupported
+      ? "Microphone permission granted. Speak in Spanish; demo mode will transcribe supported browsers."
+      : "Microphone permission granted, but this browser cannot transcribe demo speech. Use live mode or type a reply."
   );
-  return startDemoSession(starter, handlers);
+
+  speechRef.current = startSpeechRecognition({
+    onFinal: (text) => {
+      setInterimSpeech("");
+      session.sendText(text);
+    },
+    onInterim: setInterimSpeech,
+    onUnavailable: (message) => setMicNote(message)
+  });
+
+  return {
+    stop: () => {
+      speechRef.current?.stop();
+      speechRef.current = null;
+      session.stop();
+    },
+    sendText: session.sendText
+  };
 }
 
 function PracticeView(props: {
@@ -342,6 +421,8 @@ function PracticeView(props: {
   typedReply: string;
   useDemo: boolean;
   micNote: string;
+  micLevel: number;
+  interimSpeech: string;
 }) {
   const active = !["idle", "ended", "error"].includes(props.status);
 
@@ -378,6 +459,7 @@ function PracticeView(props: {
               <Mic size={30} />
               <h3>Start with a short answer out loud.</h3>
               <p>{props.lesson.starter}</p>
+              {props.interimSpeech && <p className="interim-speech">{props.interimSpeech}</p>}
             </div>
           ) : (
             props.messages.map((message) => (
@@ -390,10 +472,21 @@ function PracticeView(props: {
         </div>
 
         {props.error && <div className="error-line">{props.error}</div>}
-        <div className="mic-note">{props.micNote}</div>
+        <div className="mic-note">
+          <span>{props.micNote}</span>
+          <span className="mic-meter" aria-label="Microphone activity">
+            <span style={{ width: `${Math.max(8, Math.round(props.micLevel * 100))}%` }} />
+          </span>
+          {props.interimSpeech && <strong>Hearing: {props.interimSpeech}</strong>}
+        </div>
 
         <div className="practice-controls">
-          <button className="mic-button" onClick={active ? props.onEnd : props.onStart} type="button">
+          <button
+            aria-label={active ? "End practice session" : "Start microphone practice"}
+            className="mic-button"
+            onClick={active ? props.onEnd : props.onStart}
+            type="button"
+          >
             {active ? <Square size={30} /> : props.status === "error" ? <MicOff size={30} /> : <Mic size={34} />}
           </button>
           <div className="typed-reply">
@@ -406,7 +499,7 @@ function PracticeView(props: {
               placeholder="Type instead..."
               value={props.typedReply}
             />
-            <button onClick={props.onSend} type="button">
+            <button aria-label="Send typed reply" onClick={props.onSend} type="button">
               <Play size={18} />
             </button>
           </div>
