@@ -449,6 +449,107 @@ button {
   padding: 12px 14px;
 }
 
+.support-card {
+  display: grid;
+  gap: 10px;
+  border: 1px solid rgba(15, 159, 154, 0.2);
+  border-radius: 20px;
+  background: #f0fdfa;
+  padding: 14px;
+}
+
+.support-card > div:first-child {
+  display: grid;
+  gap: 4px;
+}
+
+.support-card span {
+  color: #0f766e;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.support-card h3 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 1rem;
+  line-height: 1.25;
+}
+
+.support-card p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.model-phrase,
+.support-details button,
+.phrase-list button {
+  border: 0;
+  border-radius: 999px;
+  font-weight: 800;
+}
+
+.model-phrase {
+  justify-self: start;
+  background: #101827;
+  color: #fff;
+  padding: 11px 14px;
+  text-align: left;
+}
+
+.support-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.support-details span,
+.support-details button {
+  background: rgba(255, 255, 255, 0.72);
+  color: #0f766e;
+  padding: 8px 10px;
+}
+
+.support-card.assisted {
+  border-color: rgba(242, 183, 5, 0.28);
+  background: #fffbeb;
+}
+
+.support-card.assisted span,
+.support-card.assisted .support-details span,
+.support-card.assisted .support-details button {
+  color: #92400e;
+}
+
+.support-card.challenge {
+  border-color: rgba(229, 62, 62, 0.24);
+  background: #fff5f5;
+}
+
+.support-card.challenge span,
+.support-card.challenge .support-details button {
+  color: #b91c1c;
+}
+
+:root[data-theme="dark"] .support-card {
+  background: rgba(20, 184, 166, 0.12);
+}
+
+:root[data-theme="dark"] .support-card.assisted {
+  background: rgba(251, 191, 36, 0.12);
+}
+
+:root[data-theme="dark"] .support-card.challenge {
+  background: rgba(240, 82, 82, 0.12);
+}
+
+:root[data-theme="dark"] .support-details span,
+:root[data-theme="dark"] .support-details button {
+  background: rgba(15, 23, 42, 0.42);
+}
+
 .mic-note {
   display: grid;
   gap: 8px;
@@ -574,7 +675,7 @@ button {
   margin-top: 10px;
 }
 
-.phrase-list span {
+.phrase-list button {
   border-radius: 999px;
   background: #ecfeff;
   color: #0f766e;
@@ -583,7 +684,7 @@ button {
   font-weight: 700;
 }
 
-:root[data-theme="dark"] .phrase-list span {
+:root[data-theme="dark"] .phrase-list button {
   background: rgba(20, 184, 166, 0.14);
   color: #5eead4;
 }

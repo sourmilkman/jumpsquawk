@@ -36,6 +36,7 @@ import { buildSessionSummary, buildTutorInstructions } from "./lib/sessionCoach"
 import { startSpeechRecognition, supportsSpeechRecognition, type SpeechRecognitionHandle } from "./lib/speechRecognition";
 import { clearAppCacheAndReload } from "./lib/appUpdate";
 import { APP_VERSION } from "./lib/version";
+import { getSpeakingSupport, type SpeakingSupport } from "./lib/scaffolding";
 
 type View = "practice" | "lessons" | "review" | "progress" | "settings";
 
@@ -91,9 +92,14 @@ export function App() {
 
   const lesson = useMemo(() => getLessonById(lessonId), [lessonId]);
   const turns = messages.filter((message) => message.role !== "system").length;
+  const learnerTurns = messages.filter((message) => message.role === "learner").length;
   const settings = progress?.settings;
   const gatewayUrl = settings?.gatewayUrl ?? sameOriginGateway();
   const useDemo = settings?.demoMode || !health?.realtimeReady;
+  const speakingSupport = useMemo(
+    () => getSpeakingSupport(lesson, progress?.lessons[lesson.id], learnerTurns),
+    [lesson, learnerTurns, progress?.lessons]
+  );
 
   useEffect(() => {
     loadProgress().then(setProgress);
@@ -176,7 +182,7 @@ export function App() {
             speechRef
           })
         : await startRealtimeSession(
-            buildTutorInstructions(lesson),
+            buildTutorInstructions(lesson, speakingSupport.level),
             gatewayUrl,
             progress.settings.voice,
             handlers
@@ -237,7 +243,7 @@ export function App() {
       } else {
         try {
           sessionRef.current = await startRealtimeSession(
-            buildTutorInstructions(lesson),
+            buildTutorInstructions(lesson, speakingSupport.level),
             gatewayUrl,
             progress.settings.voice,
             handlers
@@ -293,7 +299,7 @@ export function App() {
       <main className="main-stage">
         <header className="topbar">
           <div>
-            <p>{useDemo ? "Demo practice" : "Live Realtime practice"}</p>
+            <p>{useDemo ? "Demo practice" : "Live Realtime practice"} - v{APP_VERSION}</p>
             <h1>{viewTitle(view)}</h1>
           </div>
           <div className="top-stats">
@@ -323,6 +329,7 @@ export function App() {
             micNote={micNote}
             micLevel={micLevel}
             interimSpeech={interimSpeech}
+            support={speakingSupport}
           />
         )}
         {view === "lessons" && (
@@ -428,6 +435,7 @@ function PracticeView(props: {
   micNote: string;
   micLevel: number;
   interimSpeech: string;
+  support: SpeakingSupport;
 }) {
   const active = !["idle", "ended", "error"].includes(props.status);
 
@@ -454,7 +462,33 @@ function PracticeView(props: {
           <div>
             <p>{props.lesson.level} conversation</p>
             <h2>{props.lesson.title}</h2>
-            <span>{props.lesson.minutes} min · {statusLabel[props.status]}</span>
+            <span>{props.lesson.minutes} min - {statusLabel[props.status]}</span>
+          </div>
+        </div>
+
+        <div className={`support-card ${props.support.level}`}>
+          <div>
+            <span>{props.support.label} prompt</span>
+            <h3>{props.support.prompt.cue}</h3>
+            <p>{props.support.helperText}</p>
+          </div>
+          {props.support.showModel && (
+            <button
+              className="model-phrase"
+              onClick={() => props.setTypedReply(props.support.prompt.say)}
+              type="button"
+            >
+              {props.support.prompt.say}
+            </button>
+          )}
+          <div className="support-details">
+            {props.support.showMeaning && <span>{props.support.prompt.meaning}</span>}
+            {props.support.showPattern && <span>{props.support.prompt.pattern}</span>}
+            {!props.support.showModel && (
+              <button onClick={() => props.setTypedReply(props.support.prompt.say)} type="button">
+                Use phrase
+              </button>
+            )}
           </div>
         </div>
 
@@ -517,10 +551,20 @@ function PracticeView(props: {
           <h2>{props.lesson.goal}</h2>
         </div>
         <div className="panel-section">
-          <p>Try these</p>
+          <p>Current support</p>
+          <h2>{props.support.label}</h2>
+          <ul>
+            <li>{props.support.prompt.cue}</li>
+            <li>{props.support.prompt.meaning}</li>
+          </ul>
+        </div>
+        <div className="panel-section">
+          <p>Phrase bank</p>
           <div className="phrase-list">
             {props.lesson.phrases.map((phrase) => (
-              <span key={phrase}>{phrase}</span>
+              <button key={phrase} onClick={() => props.setTypedReply(phrase)} type="button">
+                {phrase}
+              </button>
             ))}
           </div>
         </div>
@@ -559,7 +603,7 @@ function LessonGrid({
             onClick={() => onChoose(lesson.id)}
             type="button"
           >
-            <span>{lesson.level} · {lesson.minutes} min</span>
+            <span>{lesson.level} - {lesson.minutes} min</span>
             <h2>{lesson.title}</h2>
             <p>{lesson.goal}</p>
             <strong>{completed} completions</strong>
@@ -582,7 +626,7 @@ function ReviewView({ progress }: { progress: ProgressState }) {
           <article className="history-row" key={session.id}>
             <strong>{getLessonById(session.lessonId).shortTitle}</strong>
             <p>{session.summary}</p>
-            <span>{session.mode} · {session.turns} turns</span>
+            <span>{session.mode} - {session.turns} turns</span>
           </article>
         ))
       )}

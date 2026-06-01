@@ -1,3 +1,10 @@
+export type SpeakingPrompt = {
+  cue: string;
+  say: string;
+  meaning: string;
+  pattern: string;
+};
+
 export type Lesson = {
   id: string;
   title: string;
@@ -9,6 +16,7 @@ export type Lesson = {
   starter: string;
   phrases: string[];
   hints: string[];
+  prompts: SpeakingPrompt[];
 };
 
 export const lessons: Lesson[] = [
@@ -22,7 +30,27 @@ export const lessons: Lesson[] = [
     setting: "You meet a new neighbor in the hallway.",
     starter: "Hola, soy Lucia. Como te llamas?",
     phrases: ["Me llamo...", "Mucho gusto.", "De donde eres?", "Soy de..."],
-    hints: ["Use soy for identity.", "Ask one short question back."]
+    hints: ["Use soy for identity.", "Ask one short question back."],
+    prompts: [
+      {
+        cue: "Say your name.",
+        say: "Me llamo Tom.",
+        meaning: "My name is Tom.",
+        pattern: "Me llamo + your name"
+      },
+      {
+        cue: "Say it is nice to meet them.",
+        say: "Mucho gusto.",
+        meaning: "Nice to meet you.",
+        pattern: "Fixed phrase"
+      },
+      {
+        cue: "Ask where they are from.",
+        say: "De donde eres?",
+        meaning: "Where are you from?",
+        pattern: "De donde + eres"
+      }
+    ]
   },
   {
     id: "food",
@@ -34,7 +62,27 @@ export const lessons: Lesson[] = [
     setting: "You are at a small cafe in Madrid.",
     starter: "Buenos dias. Que quieres tomar?",
     phrases: ["Quiero un cafe.", "Para mi, una tostada.", "Cuanto cuesta?", "Gracias."],
-    hints: ["Quiero means I want.", "Use por favor to sound polite."]
+    hints: ["Quiero means I want.", "Use por favor to sound polite."],
+    prompts: [
+      {
+        cue: "Order a drink.",
+        say: "Quiero un cafe, por favor.",
+        meaning: "I want a coffee, please.",
+        pattern: "Quiero + item + por favor"
+      },
+      {
+        cue: "Add something small to eat.",
+        say: "Para mi, una tostada.",
+        meaning: "For me, toast.",
+        pattern: "Para mi + item"
+      },
+      {
+        cue: "Ask the price.",
+        say: "Cuanto cuesta?",
+        meaning: "How much does it cost?",
+        pattern: "Cuanto cuesta?"
+      }
+    ]
   },
   {
     id: "routine",
@@ -46,7 +94,27 @@ export const lessons: Lesson[] = [
     setting: "A classmate asks about your day.",
     starter: "Como es un dia normal para ti?",
     phrases: ["Me levanto a las...", "Trabajo por la manana.", "Como a la una.", "Por la noche..."],
-    hints: ["Keep verbs in the present tense.", "Use a time phrase if you can."]
+    hints: ["Keep verbs in the present tense.", "Use a time phrase if you can."],
+    prompts: [
+      {
+        cue: "Say when you wake up.",
+        say: "Me levanto a las siete.",
+        meaning: "I get up at seven.",
+        pattern: "Me levanto a las + time"
+      },
+      {
+        cue: "Say what you do in the morning.",
+        say: "Trabajo por la manana.",
+        meaning: "I work in the morning.",
+        pattern: "Verb + por la manana"
+      },
+      {
+        cue: "Add something about night.",
+        say: "Por la noche, estudio espanol.",
+        meaning: "At night, I study Spanish.",
+        pattern: "Por la noche + action"
+      }
+    ]
   },
   {
     id: "family",
@@ -58,7 +126,27 @@ export const lessons: Lesson[] = [
     setting: "You are chatting before a beginner Spanish class.",
     starter: "Cuentame un poco sobre tu familia o tus amigos.",
     phrases: ["Tengo un hermano.", "Mi amiga se llama...", "Vive en...", "Es muy amable."],
-    hints: ["Tengo means I have.", "Use mi for my."]
+    hints: ["Tengo means I have.", "Use mi for my."],
+    prompts: [
+      {
+        cue: "Say one person you have.",
+        say: "Tengo una hermana.",
+        meaning: "I have a sister.",
+        pattern: "Tengo + person"
+      },
+      {
+        cue: "Say someone's name.",
+        say: "Mi amigo se llama Alex.",
+        meaning: "My friend's name is Alex.",
+        pattern: "Mi + person + se llama + name"
+      },
+      {
+        cue: "Describe them simply.",
+        say: "Es muy amable.",
+        meaning: "They are very kind.",
+        pattern: "Es muy + adjective"
+      }
+    ]
   },
   {
     id: "hobbies",
@@ -70,7 +158,27 @@ export const lessons: Lesson[] = [
     setting: "You meet someone at a weekend meetup.",
     starter: "Que te gusta hacer los fines de semana?",
     phrases: ["Me gusta...", "No me gusta mucho...", "Tambien me gusta...", "Y a ti?"],
-    hints: ["Me gusta is followed by an activity.", "Y a ti? keeps the conversation going."]
+    hints: ["Me gusta is followed by an activity.", "Y a ti? keeps the conversation going."],
+    prompts: [
+      {
+        cue: "Say one thing you like.",
+        say: "Me gusta escuchar musica.",
+        meaning: "I like listening to music.",
+        pattern: "Me gusta + activity"
+      },
+      {
+        cue: "Add another preference.",
+        say: "Tambien me gusta caminar.",
+        meaning: "I also like walking.",
+        pattern: "Tambien me gusta + activity"
+      },
+      {
+        cue: "Ask them back.",
+        say: "Y a ti?",
+        meaning: "And you?",
+        pattern: "Fixed phrase"
+      }
+    ]
   }
 ];
 
