@@ -175,6 +175,19 @@ export function App() {
             message.role === "tutor" && !message.translation
               ? { ...message, translation: translateTutorText(message.text, lesson) }
               : message;
+          if (nextMessage.role === "tutor" && !nextMessage.text && nextMessage.translation) {
+            let latestTutorIndex = -1;
+            for (let index = current.length - 1; index >= 0; index -= 1) {
+              if (current[index].role === "tutor") {
+                latestTutorIndex = index;
+                break;
+              }
+            }
+            if (latestTutorIndex < 0) return current;
+            return current.map((item, index) =>
+              index === latestTutorIndex ? { ...item, translation: nextMessage.translation } : item
+            );
+          }
           const last = current[current.length - 1];
           if (last?.role === nextMessage.role && last.text === nextMessage.text) return current;
           if (nextMessage.role === "tutor" && useDemo) {

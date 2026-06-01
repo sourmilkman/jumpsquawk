@@ -26,4 +26,11 @@ describe("splitTutorTranslation", () => {
   it("leaves ordinary tutor text alone", () => {
     expect(splitTutorTranslation("Como te llamas?")).toEqual({ text: "Como te llamas?" });
   });
+
+  it("supports translation-only text output", () => {
+    expect(splitTutorTranslation("Translation: What is your name?")).toEqual({
+      text: "Translation: What is your name?",
+      translation: "What is your name?"
+    });
+  });
 });

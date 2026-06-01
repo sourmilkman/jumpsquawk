@@ -63,10 +63,10 @@ function makeMessage(
 
 export function splitTutorTranslation(text: string): { text: string; translation?: string } {
   const trimmed = text.trim();
-  const match = trimmed.match(/^(.*?)(?:\s+|\n)(?:English|Translation):\s*(.+)$/is);
+  const match = trimmed.match(/^(?:(.*?)\s+)?(?:English|Translation):\s*(.+)$/is);
   if (!match) return { text: trimmed };
 
-  const spanish = match[1].trim();
+  const spanish = match[1]?.trim() ?? "";
   const translation = match[2].trim();
   return {
     text: spanish || trimmed,
@@ -75,7 +75,12 @@ export function splitTutorTranslation(text: string): { text: string; translation
 }
 
 function createResponseEvent() {
-  return JSON.stringify({ type: "response.create" });
+  return JSON.stringify({
+    type: "response.create",
+    response: {
+      modalities: ["audio", "text"]
+    }
+  });
 }
 
 async function readGatewayError(response: Response): Promise<string> {
@@ -158,11 +163,25 @@ export async function startRealtimeSession(
 
   dataChannel.addEventListener("message", (event) => {
     const payload = JSON.parse(event.data);
-    const text = payload?.transcript ?? payload?.item?.content?.[0]?.transcript;
+    const text =
+      payload?.transcript ??
+      payload?.text ??
+      payload?.item?.content?.[0]?.transcript ??
+      payload?.item?.content?.[0]?.text;
     const isCompleteTranscript =
       payload?.type === "response.output_audio_transcript.done" ||
       payload?.type === "conversation.item.done" ||
       payload?.type === "conversation.item.input_audio_transcription.completed";
+    const isTextTranslation =
+      payload?.type === "response.output_text.done" ||
+      payload?.type === "response.content_part.done";
+
+    if (isTextTranslation && typeof text === "string" && text.trim()) {
+      const parsed = splitTutorTranslation(text);
+      if (parsed.translation) {
+        handlers.onMessage(makeMessage("tutor", "", parsed.translation));
+      }
+    }
 
     if (isCompleteTranscript && typeof text === "string" && text.trim()) {
       const role = payload?.item?.role === "user" ? "learner" : "tutor";
