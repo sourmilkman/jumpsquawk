@@ -7,7 +7,8 @@ describe("sessionCoach", () => {
     const instructions = buildTutorInstructions(lessons[0]);
 
     expect(instructions).toContain("Spanish-only");
-    expect(instructions).toContain("mostly simple Spanish");
+    expect(instructions).toContain("English:");
+    expect(instructions).toContain("Ask only one question at a time");
     expect(instructions).toContain(lessons[0].goal);
     expect(instructions).toContain(lessons[0].starter);
   });

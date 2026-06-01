@@ -61,6 +61,19 @@ function makeMessage(
   };
 }
 
+export function splitTutorTranslation(text: string): { text: string; translation?: string } {
+  const trimmed = text.trim();
+  const match = trimmed.match(/^(.*?)(?:\s+|\n)(?:English|Translation):\s*(.+)$/is);
+  if (!match) return { text: trimmed };
+
+  const spanish = match[1].trim();
+  const translation = match[2].trim();
+  return {
+    text: spanish || trimmed,
+    translation: translation || undefined
+  };
+}
+
 function createResponseEvent() {
   return JSON.stringify({ type: "response.create" });
 }
@@ -153,7 +166,8 @@ export async function startRealtimeSession(
 
     if (isCompleteTranscript && typeof text === "string" && text.trim()) {
       const role = payload?.item?.role === "user" ? "learner" : "tutor";
-      handlers.onMessage(makeMessage(role, text.trim()));
+      const parsed = role === "tutor" ? splitTutorTranslation(text) : { text: text.trim() };
+      handlers.onMessage(makeMessage(role, parsed.text, parsed.translation));
     }
 
     if (payload?.type === "response.audio.done" || payload?.type === "response.output_audio.done") {
