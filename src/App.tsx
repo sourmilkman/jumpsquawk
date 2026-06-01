@@ -34,6 +34,8 @@ import {
 } from "./lib/realtimeClient";
 import { buildSessionSummary, buildTutorInstructions } from "./lib/sessionCoach";
 import { startSpeechRecognition, supportsSpeechRecognition, type SpeechRecognitionHandle } from "./lib/speechRecognition";
+import { clearAppCacheAndReload } from "./lib/appUpdate";
+import { APP_VERSION } from "./lib/version";
 
 type View = "practice" | "lessons" | "review" | "progress" | "settings";
 
@@ -285,6 +287,7 @@ export function App() {
           {health?.realtimeReady ? <Signal size={16} /> : <WifiOff size={16} />}
           <span>{health?.realtimeReady ? "Live voice ready" : "Demo mode ready"}</span>
         </div>
+        <span className="version-chip">v{APP_VERSION}</span>
       </aside>
 
       <main className="main-stage">
@@ -341,6 +344,8 @@ export function App() {
             onSettings={patchSettings}
             progress={progress}
             voiceOptions={voiceOptions}
+            version={APP_VERSION}
+            onUpdateApp={clearAppCacheAndReload}
           />
         )}
       </main>
@@ -613,17 +618,28 @@ function SettingsView({
   health,
   onSettings,
   progress,
-  voiceOptions
+  voiceOptions,
+  version,
+  onUpdateApp
 }: {
   gatewayUrl: string;
   health: HealthState | null;
   onSettings: (settings: Partial<ProgressState["settings"]>) => void;
   progress: ProgressState;
   voiceOptions: Array<{ value: RealtimeVoice; label: string }>;
+  version: string;
+  onUpdateApp: () => void;
 }) {
   return (
     <section className="plain-panel settings-panel">
       <h2>Local settings</h2>
+      <div className="version-row">
+        <span>Version</span>
+        <strong>v{version}</strong>
+      </div>
+      <button className="update-button" onClick={onUpdateApp} type="button">
+        Update app
+      </button>
       <label className="switch-row">
         <span>
           <strong>Demo mode</strong>

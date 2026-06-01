@@ -179,6 +179,46 @@ button {
   font-size: 0.88rem;
 }
 
+.version-chip,
+.version-row {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.version-chip {
+  align-self: flex-start;
+  padding: 6px 10px;
+}
+
+.version-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-radius: 18px;
+  padding: 12px 14px;
+}
+
+.version-row strong {
+  color: var(--ink);
+}
+
+.update-button {
+  min-height: 48px;
+  border: 0;
+  border-radius: 16px;
+  background: #101827;
+  color: #fff;
+  font-weight: 800;
+}
+
+:root[data-theme="dark"] .update-button {
+  background: #eef4ff;
+  color: #08111f;
+}
+
 :root[data-theme="dark"] .local-chip,
 :root[data-theme="dark"] .top-stats span,
 :root[data-theme="dark"] .gateway-status,
