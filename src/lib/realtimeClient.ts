@@ -65,6 +65,28 @@ function createResponseEvent() {
   return JSON.stringify({ type: "response.create" });
 }
 
+async function readGatewayError(response: Response): Promise<string> {
+  const body = await response.text();
+  if (!body) return "Could not start live voice practice.";
+
+  try {
+    const parsed = JSON.parse(body) as { error?: unknown };
+    if (typeof parsed.error === "string") return parsed.error;
+    if (
+      parsed.error &&
+      typeof parsed.error === "object" &&
+      "message" in parsed.error &&
+      typeof parsed.error.message === "string"
+    ) {
+      return parsed.error.message;
+    }
+  } catch {
+    return body;
+  }
+
+  return body;
+}
+
 export async function startRealtimeSession(
   instructions: string,
   gatewayUrl: string,
@@ -154,7 +176,7 @@ export async function startRealtimeSession(
   });
 
   if (!response.ok) {
-    const detail = await response.text();
+    const detail = await readGatewayError(response);
     throw new Error(detail || "Could not start live voice practice.");
   }
 

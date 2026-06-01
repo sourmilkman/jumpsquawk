@@ -61,6 +61,28 @@ function json(req: Request, body: unknown, status = 200): Response {
   });
 }
 
+function parseOpenAIError(text: string): string {
+  try {
+    const parsed = JSON.parse(text) as {
+      error?: {
+        message?: string;
+        code?: string;
+        type?: string;
+      };
+    };
+    const message = parsed.error?.message;
+    const code = parsed.error?.code;
+
+    if (code === "invalid_issuer" || message?.toLowerCase().includes("valid issuer")) {
+      return "OpenAI rejected the gateway API key. Rotate the key, add the new OPENAI_API_KEY in Netlify, then redeploy.";
+    }
+
+    return message ?? text;
+  } catch {
+    return text;
+  }
+}
+
 async function readSessionRequest(req: Request) {
   const contentType = req.headers.get("content-type") ?? "";
   if (contentType.includes("application/json")) {
@@ -130,7 +152,7 @@ async function handleRealtimeSession(req: Request): Promise<Response> {
 
   const answer = await response.text();
   if (!response.ok) {
-    return json(req, { error: answer || "Realtime session failed." }, response.status);
+    return json(req, { error: parseOpenAIError(answer || "Realtime session failed.") }, response.status);
   }
 
   return new Response(answer, {
