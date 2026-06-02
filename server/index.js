@@ -57,6 +57,11 @@ app.post("/api/realtime/session", async (req, res) => {
     model,
     instructions,
     audio: {
+      input: {
+        transcription: {
+          model: "gpt-4o-mini-transcribe"
+        }
+      },
       output: {
         voice
       }

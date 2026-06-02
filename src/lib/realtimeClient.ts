@@ -83,6 +83,41 @@ function createResponseEvent() {
   });
 }
 
+type RealtimePayload = {
+  type?: string;
+  transcript?: string;
+  text?: string;
+  item?: {
+    role?: string;
+    content?: Array<{
+      transcript?: string;
+      text?: string;
+    }>;
+  };
+};
+
+export function transcriptMessageFromPayload(payload: RealtimePayload): TranscriptMessage | null {
+  const text =
+    payload.transcript ??
+    payload.text ??
+    payload.item?.content?.[0]?.transcript ??
+    payload.item?.content?.[0]?.text;
+  const isLearnerAudioTranscript =
+    payload.type === "conversation.item.input_audio_transcription.completed";
+  const isCompleteTranscript =
+    payload.type === "response.output_audio_transcript.done" ||
+    payload.type === "conversation.item.done" ||
+    isLearnerAudioTranscript;
+
+  if (!isCompleteTranscript || typeof text !== "string" || !text.trim()) {
+    return null;
+  }
+
+  const role = isLearnerAudioTranscript || payload.item?.role === "user" ? "learner" : "tutor";
+  const parsed = role === "tutor" ? splitTutorTranslation(text) : { text: text.trim() };
+  return makeMessage(role, parsed.text, parsed.translation);
+}
+
 async function readGatewayError(response: Response): Promise<string> {
   const body = await response.text();
   if (!body) return "Could not start live voice practice.";
@@ -163,15 +198,12 @@ export async function startRealtimeSession(
 
   dataChannel.addEventListener("message", (event) => {
     const payload = JSON.parse(event.data);
+    const transcriptMessage = transcriptMessageFromPayload(payload);
     const text =
       payload?.transcript ??
       payload?.text ??
       payload?.item?.content?.[0]?.transcript ??
       payload?.item?.content?.[0]?.text;
-    const isCompleteTranscript =
-      payload?.type === "response.output_audio_transcript.done" ||
-      payload?.type === "conversation.item.done" ||
-      payload?.type === "conversation.item.input_audio_transcription.completed";
     const isTextTranslation =
       payload?.type === "response.output_text.done" ||
       payload?.type === "response.content_part.done";
@@ -183,10 +215,8 @@ export async function startRealtimeSession(
       }
     }
 
-    if (isCompleteTranscript && typeof text === "string" && text.trim()) {
-      const role = payload?.item?.role === "user" ? "learner" : "tutor";
-      const parsed = role === "tutor" ? splitTutorTranslation(text) : { text: text.trim() };
-      handlers.onMessage(makeMessage(role, parsed.text, parsed.translation));
+    if (transcriptMessage) {
+      handlers.onMessage(transcriptMessage);
     }
 
     if (payload?.type === "response.audio.done" || payload?.type === "response.output_audio.done") {

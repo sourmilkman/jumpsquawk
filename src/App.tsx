@@ -581,6 +581,23 @@ function PracticeView(props: {
   support: SpeakingSupport;
 }) {
   const active = !["idle", "ended", "error"].includes(props.status);
+  const transcriptRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const transcript = transcriptRef.current;
+    if (!transcript) return;
+
+    requestAnimationFrame(() => {
+      if (typeof transcript.scrollTo === "function") {
+        transcript.scrollTo({
+          top: transcript.scrollHeight,
+          behavior: "smooth"
+        });
+      } else {
+        transcript.scrollTop = transcript.scrollHeight;
+      }
+    });
+  }, [props.messages, props.interimSpeech]);
 
   return (
     <section className="practice-layout">
@@ -647,7 +664,7 @@ function PracticeView(props: {
           </div>
         </div>
 
-        <div className="transcript" aria-live="polite">
+        <div className="transcript" aria-live="polite" ref={transcriptRef}>
           {props.messages.length === 0 ? (
             <div className="empty-state">
               <Mic size={30} />

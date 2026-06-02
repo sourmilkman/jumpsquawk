@@ -135,6 +135,11 @@ async function handleRealtimeSession(req: Request): Promise<Response> {
       model,
       instructions,
       audio: {
+        input: {
+          transcription: {
+            model: "gpt-4o-mini-transcribe"
+          }
+        },
         output: {
           voice
         }
