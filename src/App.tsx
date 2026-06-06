@@ -112,6 +112,7 @@ export function App() {
   const utteranceRef = useRef<UtteranceBuffer | null>(null);
   const lastLearnerSendRef = useRef({ text: "", at: 0 });
   const recentTutorLinesRef = useRef<string[]>([]);
+  const autoEndRef = useRef(false);
 
   const lesson = useMemo(() => getLessonById(lessonId), [lessonId]);
   const turns = messages.filter((message) => message.role !== "system").length;
@@ -156,6 +157,7 @@ export function App() {
   function resetSessionMessages() {
     lastLearnerSendRef.current = { text: "", at: 0 };
     recentTutorLinesRef.current = [];
+    autoEndRef.current = false;
     setMessages([
       {
         id: crypto.randomUUID(),
@@ -195,6 +197,11 @@ export function App() {
             speakSpanish(nextMessage.text, progress?.settings.audioOutput, progress?.settings.voice);
           } else if (nextMessage.role === "tutor") {
             recentTutorLinesRef.current = [nextMessage.text, ...recentTutorLinesRef.current].slice(0, 4);
+          }
+          const learnerTurnsInTranscript = current.filter((item) => item.role === "learner").length;
+          if (nextMessage.role === "tutor" && learnerTurnsInTranscript >= lesson.prompts.length && !autoEndRef.current) {
+            autoEndRef.current = true;
+            window.setTimeout(() => void endSession(), 1200);
           }
           return [...current, nextMessage].slice(-18);
         }),
@@ -640,7 +647,9 @@ function PracticeView(props: {
 
         <div className={`support-card ${props.support.level}`}>
           <div>
-            <span>{props.support.label} prompt</span>
+            <span>
+              {props.support.label} step {props.support.stepIndex + 1}/{props.support.totalSteps}
+            </span>
             <h3>{props.support.prompt.cue}</h3>
             <p>{props.support.helperText}</p>
           </div>
@@ -656,12 +665,25 @@ function PracticeView(props: {
           <div className="support-details">
             {props.support.showMeaning && <span>{props.support.prompt.meaning}</span>}
             {props.support.showPattern && <span>{props.support.prompt.pattern}</span>}
+            {props.support.prompt.vocab.map((item) => (
+              <span key={item}>{item}</span>
+            ))}
             {!props.support.showModel && (
               <button onClick={() => props.setTypedReply(props.support.prompt.say)} type="button">
                 Use phrase
               </button>
             )}
           </div>
+          <div className="step-meter" aria-label="Lesson step progress">
+            <span
+              style={{
+                width: `${Math.round(((props.support.stepIndex + 1) / props.support.totalSteps) * 100)}%`
+              }}
+            />
+          </div>
+          {props.support.isFinalStep && (
+            <p className="final-step-note">Final step. After this, end the session to save your progress.</p>
+          )}
         </div>
 
         <div className="transcript" aria-live="polite" ref={transcriptRef}>
@@ -737,11 +759,29 @@ function PracticeView(props: {
         </div>
         <div className="panel-section">
           <p>Current support</p>
-          <h2>{props.support.label}</h2>
+          <h2>
+            {props.support.label} {props.support.stepIndex + 1}/{props.support.totalSteps}
+          </h2>
           <ul>
             <li>{props.support.prompt.cue}</li>
             <li>{props.support.prompt.meaning}</li>
+            {props.support.prompt.vocab.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
           </ul>
+        </div>
+        <div className="panel-section">
+          <p>Lesson path</p>
+          <ol className="lesson-steps">
+            {props.lesson.prompts.map((prompt, index) => (
+              <li
+                className={index === props.support.stepIndex ? "current" : index < props.support.stepIndex ? "done" : ""}
+                key={prompt.say}
+              >
+                {prompt.cue}
+              </li>
+            ))}
+          </ol>
         </div>
         <div className="panel-section">
           <p>Phrase bank</p>

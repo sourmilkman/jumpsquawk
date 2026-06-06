@@ -10,6 +10,9 @@ describe("sessionCoach", () => {
     expect(instructions).toContain("Translation:");
     expect(instructions).toContain("Never speak English aloud");
     expect(instructions).toContain("Ask only one question at a time");
+    expect(instructions).toContain("finite lesson");
+    expect(instructions).toContain("Lesson steps:");
+    expect(instructions).toContain("Vocab:");
     expect(instructions).toContain(lessons[0].goal);
     expect(instructions).toContain(lessons[0].starter);
   });

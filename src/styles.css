@@ -572,6 +572,25 @@ button {
   padding: 8px 10px;
 }
 
+.step-meter {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(15, 118, 110, 0.14);
+}
+
+.step-meter span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--teal), var(--green));
+  transition: width 220ms ease;
+}
+
+.final-step-note {
+  font-weight: 800;
+}
+
 .support-card.assisted {
   border-color: rgba(242, 183, 5, 0.28);
   background: #fffbeb;
@@ -754,6 +773,29 @@ button {
   padding-left: 18px;
   color: var(--muted);
   line-height: 1.55;
+}
+
+.lesson-steps {
+  display: grid;
+  gap: 8px;
+  margin: 10px 0 0;
+  padding-left: 20px;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.lesson-steps li {
+  padding-left: 4px;
+}
+
+.lesson-steps .done {
+  color: var(--green);
+  font-weight: 800;
+}
+
+.lesson-steps .current {
+  color: var(--ink);
+  font-weight: 850;
 }
 
 .content-grid {

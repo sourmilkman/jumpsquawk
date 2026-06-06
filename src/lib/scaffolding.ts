@@ -7,6 +7,10 @@ export type SpeakingSupport = {
   level: SupportLevel;
   label: string;
   prompt: SpeakingPrompt;
+  stepIndex: number;
+  totalSteps: number;
+  isFinalStep: boolean;
+  isComplete: boolean;
   helperText: string;
   showModel: boolean;
   showMeaning: boolean;
@@ -26,13 +30,19 @@ export function getSpeakingSupport(
   learnerTurnCount: number
 ): SpeakingSupport {
   const level = getSupportLevel(progress);
-  const prompt = lesson.prompts[learnerTurnCount % lesson.prompts.length] ?? lesson.prompts[0];
+  const totalSteps = lesson.prompts.length;
+  const stepIndex = Math.min(learnerTurnCount, Math.max(totalSteps - 1, 0));
+  const prompt = lesson.prompts[stepIndex] ?? lesson.prompts[0];
+  const isFinalStep = stepIndex === totalSteps - 1;
+  const isComplete = learnerTurnCount >= totalSteps;
+  const stepState = { stepIndex, totalSteps, isFinalStep, isComplete };
 
   if (level === "challenge") {
     return {
       level,
       label: "Challenge",
       prompt,
+      ...stepState,
       helperText: "Try answering without the model phrase. Reveal it only if you get stuck.",
       showModel: false,
       showMeaning: false,
@@ -45,6 +55,7 @@ export function getSpeakingSupport(
       level,
       label: "Assisted",
       prompt,
+      ...stepState,
       helperText: "Use the cue first, then glance at the sentence pattern if needed.",
       showModel: false,
       showMeaning: true,
@@ -56,6 +67,7 @@ export function getSpeakingSupport(
     level,
     label: "Guided",
     prompt,
+    ...stepState,
     helperText: "Read the Spanish out loud, then try changing one word.",
     showModel: true,
     showMeaning: true,
